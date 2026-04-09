@@ -343,7 +343,12 @@ export default function App() {
   async function speakAndShow(displayText) {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current = null;
+    }
+
+    // Ensure we have a persistent audio element (iOS requires reuse of the
+    // same element that was unlocked in the user gesture)
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
     }
 
     setSpeaking(true);
@@ -361,15 +366,17 @@ export default function App() {
     }
 
     const urls = blobs.map((b) => URL.createObjectURL(b));
+    const audio = audioRef.current;
 
     function playChunk(index) {
       if (index >= urls.length) {
         setSpeaking(false);
         return;
       }
-      const audio = new Audio(urls[index]);
-      audio.playbackRate = 1.05;
-      audioRef.current = audio;
+
+      if (index === 0) {
+        setMessages((prev) => [...prev, { role: "assistant", content: displayText }]);
+      }
 
       audio.onended = () => {
         URL.revokeObjectURL(urls[index]);
@@ -381,10 +388,8 @@ export default function App() {
         playChunk(index + 1);
       };
 
-      if (index === 0) {
-        setMessages((prev) => [...prev, { role: "assistant", content: displayText }]);
-      }
-
+      audio.src = urls[index];
+      audio.playbackRate = 1.05;
       audio.play().catch((playErr) => {
         console.warn("Autoplay blocked on chunk", index, playErr.message);
         setSpeaking(false);
@@ -405,6 +410,14 @@ export default function App() {
   }, [loadingGreeting, greetingStartMs]);
 
   async function startInterview() {
+    // Unlock iOS audio context synchronously inside the user gesture
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+    audioRef.current.src =
+      'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGFoYQQAAAAAAAA=';
+    audioRef.current.play().catch(() => {});
+
     const startMs = Date.now();
     setGreetingStartMs(startMs);
     setLoadingGreeting(true);
