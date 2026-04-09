@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {"status": "ok", "message": "AI Tutor Screener API is running"}
 
@@ -148,6 +148,7 @@ def chat_get():
 
 @app.post("/chat")
 async def chat(body: ChatRequest):
+    print("=== /chat endpoint hit ===")
     msgs = (
         [{"role": m.role, "content": m.content} for m in body.messages]
         or [{"role": "user", "content": "Hello"}]
