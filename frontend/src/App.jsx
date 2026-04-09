@@ -7,15 +7,25 @@ const COMPLETION_SIGNALS = ["best of luck", "speak with you", "review everything
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
-async function callChat(messages) {
+const TIMEOUT_MS = 90_000;
+const TIMEOUT_MSG = "Maya is waking up, please wait 30 seconds and try again.";
+
+function withTimeout(signal) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  // Chain to any existing signal
+  signal?.addEventListener("abort", () => controller.abort());
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
+async function callChat(messages) {
+  const { signal, clear } = withTimeout();
   try {
-    const res = await fetch("https://ai-tutor-screener-backend.onrender.com", {
+    const res = await fetch("https://ai-tutor-screener-backend.onrender.com/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: SESSION_ID, messages }),
-      signal: controller.signal,
+      signal,
     });
     if (!res.ok) {
       const detail = await res.json().catch(() => ({}));
@@ -23,48 +33,78 @@ async function callChat(messages) {
     }
     return (await res.json()).response;
   } catch (err) {
-    if (err.name === "AbortError") throw new Error("Request timed out. Please try again.");
+    if (err.name === "AbortError") throw new Error(TIMEOUT_MSG);
     throw err;
   } finally {
-    clearTimeout(timeout);
+    clear();
   }
 }
 
 async function callTranscribe(blob) {
+  const { signal, clear } = withTimeout();
   const formData = new FormData();
   formData.append("file", blob, "recording.webm");
-  const res = await fetch("https://ai-tutor-screener-backend.onrender.com", { method: "POST", body: formData });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `Transcription error: ${res.status}`);
+  try {
+    const res = await fetch("https://ai-tutor-screener-backend.onrender.com/transcribe", {
+      method: "POST",
+      body: formData,
+      signal,
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `Transcription error: ${res.status}`);
+    }
+    return (await res.json()).text;
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error(TIMEOUT_MSG);
+    throw err;
+  } finally {
+    clear();
   }
-  return (await res.json()).text;
 }
 
 async function callSpeak(text) {
-  const res = await fetch("https://ai-tutor-screener-backend.onrender.com", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `TTS error: ${res.status}`);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch("https://ai-tutor-screener-backend.onrender.com/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+      signal,
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `TTS error: ${res.status}`);
+    }
+    return await res.blob();
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error(TIMEOUT_MSG);
+    throw err;
+  } finally {
+    clear();
   }
-  return await res.blob();
 }
 
 async function callAssess(messages) {
-  const res = await fetch("https://ai-tutor-screener-backend.onrender.com", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `Assessment error: ${res.status}`);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch("https://ai-tutor-screener-backend.onrender.com/assess", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal,
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `Assessment error: ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error(TIMEOUT_MSG);
+    throw err;
+  } finally {
+    clear();
   }
-  return await res.json();
 }
 
 // ── TTS helpers ───────────────────────────────────────────────────────────────
