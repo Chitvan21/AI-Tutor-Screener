@@ -1,12 +1,25 @@
 # AI Tutor Screener
-A fully voice-driven AI interviewer that screens tutor candidates for Cuemath. Candidates speak with **Maya**, an AI interviewer, who asks structured questions and assesses their teaching ability. After the interview, an AI-generated assessment report is produced with scores across 5 dimensions and a hire/reject recommendation.
+### Built for the Cuemath AI Builder Challenge
 
-## What it does
+A voice-powered AI interviewer that screens tutor candidates through natural conversation and generates structured assessment reports.
 
-- Maya greets the candidate and conducts a 5-question voice interview
-- Candidate answers are transcribed in real time using Groq Whisper
-- Maya's responses are spoken aloud using Sarvam AI's Bulbul TTS
-- At the end, a detailed assessment report is generated using Claude — with scores, evidence quotes, strengths, and a recommendation
+---
+
+## Live Demo
+[cuemath-tutor-screener.vercel.app](https://cuemath-tutor-screener.vercel.app)
+
+> Note: First load may take 20-30 seconds as the server wakes up from sleep (free tier cold start).
+
+---
+
+## What It Does
+- Maya, an AI interviewer, conducts a full voice screening interview with tutor candidates
+- Candidates speak naturally — their voice is transcribed in real time
+- Maya adapts her questions based on responses, follows up on vague answers, and handles edge cases (Hindi responses, one-word answers, rambling)
+- After the interview, generates a structured assessment report with scores across 5 dimensions and direct quotes as evidence
+- Recruiters can download the report as a text file
+
+---
 
 ## Tech Stack
 
@@ -14,40 +27,83 @@ A fully voice-driven AI interviewer that screens tutor candidates for Cuemath. C
 |---|---|
 | Frontend | React + Vite |
 | Backend | FastAPI (Python) |
-| AI Interviewer | Anthropic Claude (`claude-sonnet-4-5`) |
-| Speech-to-Text | Groq Whisper (`whisper-large-v3`) |
-| Text-to-Speech | Sarvam AI Bulbul (`bulbul:v3`) |
+| Conversation AI | Claude claude-sonnet-4-5 (Anthropic) |
+| Speech to Text | Whisper Large v3 (Groq) |
+| Text to Speech | Bulbul v3 (Sarvam AI) |
+| Deployment | Vercel (frontend) + Render (backend) |
 
-## Environment Variables
+---
 
-Create a `.env` file inside the `backend/` folder:
+## Assessment Dimensions
+Maya evaluates candidates across 5 dimensions:
+- **Communication Clarity** — Can they explain things simply?
+- **Warmth & Patience** — Do they sound kind and encouraging?
+- **Ability to Simplify** — Can they break down complex ideas?
+- **Handling Difficulty** — How do they respond to stuck students?
+- **English Fluency** — Is their spoken English clear?
 
-```
-ANTHROPIC_API_KEY=your-key-here
-GROQ_API_KEY=your-key-here
-SARVAM_API_KEY=your-key-here
-```
+Each dimension is scored 1–5 with direct quotes from the conversation as evidence.
+
+---
 
 ## Running Locally
 
-### Backend
+### Prerequisites
+- Python 3.9+
+- Node.js 18+
+- API keys for: Anthropic, Groq, Sarvam AI
 
+### Backend
 ```bash
 cd backend
+python -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
+# Add your API keys to .env
 uvicorn main:app --reload
 ```
 
-Runs at `http://localhost:8000`
-
 ### Frontend
-
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Runs at `http://localhost:5173`
+### Environment Variables
+Create `backend/.env` with:
+```
+ANTHROPIC_API_KEY=your_key
+GROQ_API_KEY=your_key
+SARVAM_API_KEY=your_key
+```
 
-Open the frontend in your browser, click **Start Interview**, and speak with Maya.
+---
+
+## Key Design Decisions
+
+**Why voice-first?**
+Real tutoring happens through speech. A voice interface better reflects how candidates will actually teach, and reveals communication quality that text cannot.
+
+**Why Claude for conversation?**
+Claude's ability to follow nuanced instructions makes Maya feel natural — she adapts, follows up, and wraps up gracefully without rigid scripting.
+
+**Why Sarvam AI for TTS?**
+Sarvam's Bulbul model produces Indian-accented English voices. Since Cuemath's tutors are predominantly Indian, Maya sounds familiar and professional to them — not foreign.
+
+**Why Groq for STT?**
+Groq's LPU hardware runs Whisper Large v3 significantly faster than standard GPU inference, reducing transcription latency and keeping the conversation flow natural.
+
+---
+
+## What I'd Improve With More Time
+- Add session persistence so recruiters can review past interviews
+- Build a recruiter dashboard showing all candidate assessments side by side
+- Fine-tune Maya's questions for specific Cuemath grade levels (primary vs secondary)
+- Add a confidence score based on voice analysis (pace, hesitation, filler words)
+- Reduce cold start with a paid Render tier or keep-alive pings
+
+---
+
+## Author
+Built by Chitvan | [GitHub](https://github.com/Chitvan21)
