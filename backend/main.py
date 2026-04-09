@@ -37,7 +37,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -139,6 +139,11 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     session_id: str
     messages: list[Message]
+
+
+@app.get("/chat")
+def chat_get():
+    return {"message": "Use POST to this endpoint"}
 
 
 @app.post("/chat")
