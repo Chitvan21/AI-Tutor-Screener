@@ -42,6 +42,11 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "AI Tutor Screener API is running"}
+
+
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
     audio_bytes = await file.read()
