@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
+import { supabase } from "./supabaseClient";
+import Auth from "./Auth";
+import Dashboard from "./Dashboard";
 
 const SESSION_ID = crypto.randomUUID();
 
@@ -316,6 +319,41 @@ function LoadingScreen({ elapsedMs }) {
 }
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [view, setView] = useState("interview"); // "interview" | "dashboard"
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!user) {
+    return <Auth onLogin={setUser} />;
+  }
+
+  if (view === "dashboard") {
+    return <Dashboard user={user} onNewInterview={() => setView("interview")} />;
+  }
+
+  return <Interview user={user} onShowDashboard={() => setView("dashboard")} />;
+}
+
+function extractCandidateName(messages) {
+  const firstUser = messages.find((m) => m.role === "user");
+  if (!firstUser) return "Candidate";
+  const text = firstUser.content;
+  const match =
+    text.match(/(?:i['']?m|my name is|this is|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i) ??
+    text.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[.,!]?\s/);
+  return match?.[1]?.trim() ?? "Candidate";
+}
+
+function Interview({ user, onShowDashboard }) {
   const [started, setStarted]             = useState(false);
   const [loadingGreeting, setLoadingGreeting] = useState(false);
   const [greetingStartMs, setGreetingStartMs] = useState(0);
@@ -337,6 +375,48 @@ export default function App() {
   const chunksRef        = useRef([]);
   const autoSendTimer    = useRef(null);
   const audioRef         = useRef(null);
+  const interviewIdRef   = useRef(null);
+
+  // ── Supabase persistence ────────────────────────────────────────────────────
+
+  async function saveInterview(msgs) {
+    try {
+      const { data, error } = await supabase
+        .from("interviews")
+        .insert({
+          recruiter_id: user.id,
+          candidate_name: extractCandidateName(msgs),
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          messages: msgs,
+        })
+        .select();
+      if (error) throw error;
+      interviewIdRef.current = data?.[0]?.id ?? null;
+    } catch (err) {
+      console.error("Failed to save interview:", err);
+    }
+  }
+
+  async function saveAssessment(report) {
+    try {
+      const { error } = await supabase.from("assessments").insert({
+        interview_id: interviewIdRef.current,
+        recruiter_id: user.id,
+        candidate_name: report.candidate_name,
+        recommendation: report.recommendation,
+        confidence_score: report.confidence_score ?? null,
+        scores: report.scores,
+        overall_summary: report.overall_summary,
+        strengths: report.strengths,
+        areas_to_probe: report.areas_to_probe,
+        full_report: report,
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to save assessment:", err);
+    }
+  }
 
   // ── TTS ────────────────────────────────────────────────────────────────────
 
@@ -455,6 +535,7 @@ export default function App() {
     const lower = last.content.toLowerCase();
     if (COMPLETION_SIGNALS.some((sig) => lower.includes(sig))) {
       setInterviewState("completed");
+      saveInterview(messages);
     }
   }, [messages, interviewState]);
 
@@ -548,6 +629,7 @@ export default function App() {
     try {
       const result = await callAssess(messages);
       setReport(result);
+      saveAssessment(result);
     } catch (err) {
       setError(err.message || "Failed to generate assessment.");
     } finally {
@@ -594,7 +676,13 @@ export default function App() {
               {speaking ? "Maya is speaking…" : "AI Interview Assistant"}
             </div>
           </div>
-          <div className="header-status-dot" title={speaking ? "Speaking" : "Ready"} />
+          <div className="header-right">
+            <div className="header-status-dot" title={speaking ? "Speaking" : "Ready"} />
+            {interviewState !== "in_progress" && (
+              <button className="dashboard-btn" onClick={onShowDashboard}>Dashboard</button>
+            )}
+            <button className="logout-btn" onClick={() => supabase.auth.signOut()}>Sign out</button>
+          </div>
         </header>
 
         <div className="chat-messages">

@@ -13,11 +13,13 @@ A voice-powered AI interviewer that screens tutor candidates through natural con
 ---
 
 ## What It Does
+- Recruiters sign in with email/password — interviews and reports are saved to their account
 - Maya, an AI interviewer, conducts a full voice screening interview with tutor candidates
 - Candidates speak naturally — their voice is transcribed in real time
 - Maya adapts her questions based on responses, follows up on vague answers, and handles edge cases (Hindi responses, one-word answers, rambling)
 - After the interview, generates a structured assessment report with scores across 5 dimensions and direct quotes as evidence
-- Recruiters can download the report as a text file
+- Reports are automatically saved to Supabase and viewable in the recruiter dashboard
+- Recruiters can review all past interviews from the dashboard, expand any card for full detail, and download reports as text files
 
 ---
 
@@ -27,6 +29,7 @@ A voice-powered AI interviewer that screens tutor candidates through natural con
 |---|---|
 | Frontend | React + Vite |
 | Backend | FastAPI (Python) |
+| Auth & Database | Supabase |
 | Conversation AI | Claude claude-sonnet-4-5 (Anthropic) |
 | Speech to Text | Whisper Large v3 (Groq) |
 | Text to Speech | Bulbul v3 (Sarvam AI) |
@@ -94,11 +97,12 @@ Sarvam's Bulbul model produces Indian-accented English voices. Since Cuemath's t
 **Why Groq for STT?**
 Groq's LPU hardware runs Whisper Large v3 significantly faster than standard GPU inference, reducing transcription latency and keeping the conversation flow natural.
 
+**Why Supabase (PostgreSQL) for persistence?**
+Interviews and assessment reports are automatically saved to a PostgreSQL database via Supabase after each session. Recruiters log in with email/password auth and access a dashboard showing all past interviews — candidate name, recommendation badge, per-dimension scores, and evidence quotes — without any manual export step.
+
 ---
 
 ## What I'd Improve With More Time
-- Add session persistence so recruiters can review past interviews
-- Build a recruiter dashboard showing all candidate assessments side by side
 - Fine-tune Maya's questions for specific Cuemath grade levels (primary vs secondary)
 - Add a confidence score based on voice analysis (pace, hesitation, filler words)
 - Reduce cold start with a paid Render tier or keep-alive pings
